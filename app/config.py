@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     timezone: str = "Europe/London"
     upload_dir: Path = Path("data/uploads")
     max_upload_bytes: int = 20 * 1024 * 1024
+    raw_activity_retention_days: int = 45
+    activity_sample_seconds: int = 15
 
 
 @lru_cache
