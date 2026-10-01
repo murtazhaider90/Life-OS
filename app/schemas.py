@@ -77,3 +77,71 @@ class PlanRequest(BaseModel):
         if self.day_end_hour <= self.day_start_hour:
             raise ValueError("day_end_hour must be after day_start_hour")
         return self
+
+
+class ActivityEventCreate(BaseModel):
+    device_id: str | None = Field(default=None, max_length=80)
+    kind: str = Field(min_length=1, max_length=40)
+    occurred_at: datetime
+    duration_seconds: int = Field(default=0, ge=0, le=3600)
+    application: str | None = Field(default=None, max_length=160)
+    domain: str | None = Field(default=None, max_length=255)
+    idle_seconds: int | None = Field(default=None, ge=0, le=86400)
+    study_session_id: int | None = None
+    source: str = Field(default="desktop_agent", min_length=1, max_length=80)
+    source_event_id: str | None = Field(default=None, max_length=120)
+
+    _occurred_tz = field_validator("occurred_at")(_must_be_timezone_aware)
+
+    @field_validator("domain")
+    @classmethod
+    def normalize_domain(cls, value: str | None):
+        if value is None:
+            return None
+        value = value.strip().lower().rstrip(".")
+        if "/" in value or "://" in value:
+            raise ValueError("domain must be hostname only; paths and URLs are not stored")
+        return value or None
+
+
+class ActivityEventBatch(BaseModel):
+    events: list[ActivityEventCreate] = Field(min_length=1, max_length=500)
+
+
+class ActivityRuleCreate(BaseModel):
+    target_type: str
+    pattern: str = Field(min_length=1, max_length=255)
+    label: str
+
+    @field_validator("target_type")
+    @classmethod
+    def valid_target(cls, value: str):
+        value = value.lower()
+        if value not in {"application", "domain"}:
+            raise ValueError("target_type must be application or domain")
+        return value
+
+    @field_validator("label")
+    @classmethod
+    def valid_label(cls, value: str):
+        value = value.lower()
+        if value not in {"study", "distraction", "neutral"}:
+            raise ValueError("label must be study, distraction, or neutral")
+        return value
+
+
+class UserStateInputCreate(BaseModel):
+    observed_at: datetime
+    energy: int | None = Field(default=None, ge=1, le=5)
+    focus: int | None = Field(default=None, ge=1, le=5)
+    difficulty: int | None = Field(default=None, ge=1, le=5)
+    confused: bool | None = None
+    study_session_id: int | None = None
+
+    _observed_tz = field_validator("observed_at")(_must_be_timezone_aware)
+
+    @model_validator(mode="after")
+    def at_least_one_signal(self):
+        if all(v is None for v in (self.energy, self.focus, self.difficulty, self.confused)):
+            raise ValueError("provide at least one state signal")
+        return self
