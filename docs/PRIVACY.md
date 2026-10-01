@@ -6,3 +6,5 @@ Before adding telemetry, implement configurable retention and aggregation so raw
 
 
 Phase 2 collectors deliberately exclude window titles, keystrokes, clipboard data, screenshots, page contents, URL paths and query strings. Browser telemetry stores hostname only. Raw activity retention defaults to 45 days and is configurable.
+
+Phase 3 weekly analytics operates on locally stored aggregates and observations. It does not introduce new passive sensors. Inference records store conclusions/evidence summaries, not screenshots or raw content, and remain distinct from facts.

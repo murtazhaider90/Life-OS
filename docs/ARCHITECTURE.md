@@ -29,3 +29,7 @@ Phase 2 can add local activity collectors as separate processes writing aggregat
 ## Phase 2 telemetry boundary
 
 Desktop/browser collectors emit minimal observation samples to `/api/activity/events/bulk`. Raw events remain separate from `activity_labels`, which are deterministic outputs of explicit user rules. Study analytics reads both layers but does not convert labels into personality claims. Raw telemetry has configurable retention; state inputs and study-session summaries are retained separately.
+
+## Phase 3 planning intelligence
+
+Phase 3 adds deterministic `weekly_planner`, `learning`, `review`, and `briefing` services. Weekly plans are immutable versions at the planning-history level: a replan supersedes the previous active plan and creates a new one. Weak-topic descriptors come from recorded study attempts and influence planning only through transparent status/ranking rules. Behavioral comparisons may create `inferences` records, but never overwrite facts or observations.
