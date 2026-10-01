@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Life OS Domain Sampler",
+  "version": "0.1.0",
+  "description": "Sends only the active tab hostname to your local Life OS. No paths, queries, titles, or page contents.",
+  "permissions": ["tabs", "alarms"],
+  "host_permissions": ["http://127.0.0.1:8000/*"],
+  "background": {"service_worker": "service_worker.js"}
+}
