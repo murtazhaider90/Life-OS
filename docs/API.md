@@ -12,3 +12,11 @@ Primary endpoints:
 - `POST /api/course/documents`
 - `GET /api/course/search?q=...`
 - `GET /api/evidence`
+
+- `POST /api/activity/events/bulk`
+- `GET /api/activity/events`
+- `GET/POST /api/activity/rules`
+- `POST /api/activity/rules/{id}/disable`
+- `GET /api/activity/study-sessions/{id}/metrics`
+- `POST /api/activity/retention/prune`
+- `GET/POST /api/state-inputs`
