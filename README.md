@@ -1,6 +1,6 @@
-# Personal AI Life OS — Phase 1
+# Personal AI Life OS — Phase 2
 
-A local-first, single-user foundation for evidence-based planning and academic retrieval.
+A local-first, single-user system for evidence-based planning, academic retrieval, and privacy-minimal behavioral tracking.
 
 ## Current capabilities
 
@@ -13,6 +13,8 @@ A local-first, single-user foundation for evidence-based planning and academic r
 - Provider-neutral `AIProvider` interface; no vendor is required for deterministic features.
 - Localhost-first access; bearer token required when not operating unauthenticated on loopback.
 - Lightweight dashboard and API documentation at `/docs`.
+- Phase 2 minimal computer activity ingestion, explicit study/distraction rules, session start-latency/distraction metrics, and low-friction energy/focus inputs.
+- Optional desktop foreground-app sampler and hostname-only browser extension under `collectors/`.
 
 ## Run locally
 
@@ -28,4 +30,4 @@ Open `http://127.0.0.1:8000`.
 
 ## Important limitation
 
-This is Phase 1 infrastructure. It does **not** infer sleep, distraction, mood, readiness, or behavioral traits yet. It does not silently convert AI output into facts. AI model integration is intentionally behind an unconfigured provider interface until credentials/provider choices are supplied.
+Phase 2 can deterministically label activity only from rules you explicitly create. It does **not** infer mood, readiness, or behavioral traits yet, and unlabelled activity is never assumed to be distraction. It does not silently convert AI output into facts. AI model integration is intentionally behind an unconfigured provider interface until credentials/provider choices are supplied.
