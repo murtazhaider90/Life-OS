@@ -117,3 +117,55 @@ class PlanBlock(Base):
     rationale: Mapped[str] = mapped_column(Text)
     evidence_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ActivityRule(Base):
+    __tablename__ = "activity_rules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target_type: Mapped[str] = mapped_column(String(32), index=True)  # application | domain
+    pattern: Mapped[str] = mapped_column(String(255), index=True)
+    label: Mapped[str] = mapped_column(String(32), index=True)  # study | distraction | neutral
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ActivityEvent(Base):
+    __tablename__ = "activity_events"
+    __table_args__ = (UniqueConstraint("source", "source_event_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(40), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    application: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    domain: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    idle_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    study_session_id: Mapped[int | None] = mapped_column(ForeignKey("study_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    source: Mapped[str] = mapped_column(String(80), default="desktop_agent", index=True)
+    source_event_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    provenance_type: Mapped[ProvenanceType] = mapped_column(Enum(ProvenanceType), default=ProvenanceType.OBSERVATION)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ActivityLabel(Base):
+    __tablename__ = "activity_labels"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    activity_event_id: Mapped[int] = mapped_column(ForeignKey("activity_events.id", ondelete="CASCADE"), unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(32), index=True)
+    rule_id: Mapped[int | None] = mapped_column(ForeignKey("activity_rules.id", ondelete="SET NULL"), nullable=True)
+    basis: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class UserStateInput(Base):
+    __tablename__ = "user_state_inputs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    energy: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    focus: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    difficulty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confused: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    study_session_id: Mapped[int | None] = mapped_column(ForeignKey("study_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    provenance_type: Mapped[ProvenanceType] = mapped_column(Enum(ProvenanceType), default=ProvenanceType.USER_ESTIMATE)
+    source: Mapped[str] = mapped_column(String(80), default="manual_input")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
