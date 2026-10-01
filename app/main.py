@@ -25,7 +25,7 @@ def health():
 
 @app.get("/")
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 for router in (tasks.router, calendar.router, study.router, planning.router, weekly.router, learning.router, reviews.router, briefing.router, documents.router, evidence.router, activity.router, state.router):
