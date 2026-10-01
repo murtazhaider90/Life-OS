@@ -145,3 +145,66 @@ class UserStateInputCreate(BaseModel):
         if all(v is None for v in (self.energy, self.focus, self.difficulty, self.confused)):
             raise ValueError("provide at least one state signal")
         return self
+
+
+class StudyAttemptCreate(BaseModel):
+    study_session_id: int | None = None
+    module: str = Field(min_length=1, max_length=120)
+    topic: str = Field(min_length=1, max_length=160)
+    learning_objective: str | None = Field(default=None, max_length=255)
+    attempted_at: datetime
+    correct_count: int | None = Field(default=None, ge=0)
+    total_count: int | None = Field(default=None, ge=1)
+    confidence: int | None = Field(default=None, ge=1, le=5)
+    difficulty: int | None = Field(default=None, ge=1, le=5)
+    source_material: str | None = Field(default=None, max_length=255)
+    notes: str | None = None
+
+    _attempted_tz = field_validator("attempted_at")(_must_be_timezone_aware)
+
+    @model_validator(mode="after")
+    def validate_counts(self):
+        if self.correct_count is not None and self.total_count is None:
+            raise ValueError("total_count is required when correct_count is provided")
+        if self.correct_count is not None and self.total_count is not None and self.correct_count > self.total_count:
+            raise ValueError("correct_count cannot exceed total_count")
+        if self.correct_count is None and self.total_count is not None:
+            raise ValueError("correct_count is required when total_count is provided")
+        if self.correct_count is None and self.confidence is None:
+            raise ValueError("provide accuracy counts or confidence so the attempt carries learning evidence")
+        return self
+
+
+class WeeklyPlanRequest(BaseModel):
+    week_start: date
+    day_start_hour: int = Field(default=8, ge=0, le=23)
+    day_end_hour: int = Field(default=22, ge=1, le=24)
+    max_block_minutes: int = Field(default=60, ge=20, le=180)
+    minimum_gap_minutes: int = Field(default=10, ge=0, le=60)
+
+    @model_validator(mode="after")
+    def valid_week_window(self):
+        if self.day_end_hour <= self.day_start_hour:
+            raise ValueError("day_end_hour must be after day_start_hour")
+        if self.week_start.weekday() != 0:
+            raise ValueError("week_start must be a Monday")
+        return self
+
+
+class WeeklyReplanRequest(BaseModel):
+    week_start: date
+    as_of: datetime
+    day_start_hour: int = Field(default=8, ge=0, le=23)
+    day_end_hour: int = Field(default=22, ge=1, le=24)
+    max_block_minutes: int = Field(default=60, ge=20, le=180)
+    minimum_gap_minutes: int = Field(default=10, ge=0, le=60)
+
+    _as_of_tz = field_validator("as_of")(_must_be_timezone_aware)
+
+    @model_validator(mode="after")
+    def valid_replan(self):
+        if self.day_end_hour <= self.day_start_hour:
+            raise ValueError("day_end_hour must be after day_start_hour")
+        if self.week_start.weekday() != 0:
+            raise ValueError("week_start must be a Monday")
+        return self

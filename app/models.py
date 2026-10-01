@@ -169,3 +169,69 @@ class UserStateInput(Base):
     provenance_type: Mapped[ProvenanceType] = mapped_column(Enum(ProvenanceType), default=ProvenanceType.USER_ESTIMATE)
     source: Mapped[str] = mapped_column(String(80), default="manual_input")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class StudyAttempt(Base):
+    __tablename__ = "study_attempts"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    study_session_id: Mapped[int | None] = mapped_column(ForeignKey("study_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    module: Mapped[str] = mapped_column(String(120), index=True)
+    topic: Mapped[str] = mapped_column(String(160), index=True)
+    learning_objective: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    correct_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    difficulty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_material: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provenance_type: Mapped[ProvenanceType] = mapped_column(Enum(ProvenanceType), default=ProvenanceType.OBSERVATION)
+    source: Mapped[str] = mapped_column(String(80), default="manual_input")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class WeeklyPlan(Base):
+    __tablename__ = "weekly_plans"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    week_start: Mapped[date] = mapped_column(Date, index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    reason: Mapped[str] = mapped_column(String(80), default="initial")
+    window_start_hour: Mapped[int] = mapped_column(Integer, default=8)
+    window_end_hour: Mapped[int] = mapped_column(Integer, default=22)
+    max_block_minutes: Mapped[int] = mapped_column(Integer, default=60)
+    required_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    scheduled_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    capacity_shortfall_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class WeeklyPlanBlock(Base):
+    __tablename__ = "weekly_plan_blocks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    weekly_plan_id: Mapped[int] = mapped_column(ForeignKey("weekly_plans.id", ondelete="CASCADE"), index=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    plan_date: Mapped[date] = mapped_column(Date, index=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sequence: Mapped[int] = mapped_column(Integer, default=0)
+    minimum_viable: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    rationale: Mapped[str] = mapped_column(Text)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class InferenceRecord(Base):
+    __tablename__ = "inferences"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    inference_key: Mapped[str] = mapped_column(String(120), index=True)
+    domain: Mapped[str] = mapped_column(String(80), index=True)
+    conclusion: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    evidence_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    contradictory_evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    date_range_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    date_range_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)

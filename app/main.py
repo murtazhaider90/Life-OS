@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from .db import init_db
-from .routes import activity, calendar, documents, evidence, planning, state, study, tasks
+from .routes import activity, briefing, calendar, documents, evidence, learning, planning, reviews, state, study, tasks, weekly
 
 
 @asynccontextmanager
@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Personal AI Life OS", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Personal AI Life OS", version="0.3.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -28,5 +28,5 @@ def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-for router in (tasks.router, calendar.router, study.router, planning.router, documents.router, evidence.router, activity.router, state.router):
+for router in (tasks.router, calendar.router, study.router, planning.router, weekly.router, learning.router, reviews.router, briefing.router, documents.router, evidence.router, activity.router, state.router):
     app.include_router(router)
