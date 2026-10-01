@@ -12,3 +12,10 @@ Core Phase 1 tables:
 - `course_chunks_fts`: local full-text index.
 
 AI-derived evidence requires confidence. Source categories are not merged into one truth label.
+
+
+Phase 2 tables:
+- `activity_events`: raw minimal app/domain/idle samples with OBSERVATION provenance.
+- `activity_rules`: user-authored deterministic classification rules.
+- `activity_labels`: derived classification plus its rule/basis, separate from raw telemetry.
+- `user_state_inputs`: timestamped low-friction USER_ESTIMATE signals.
