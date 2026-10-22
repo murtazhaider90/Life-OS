@@ -19,3 +19,9 @@ Phase 2 tables:
 - `activity_rules`: user-authored deterministic classification rules.
 - `activity_labels`: derived classification plus its rule/basis, separate from raw telemetry.
 - `user_state_inputs`: timestamped low-friction USER_ESTIMATE signals.
+
+Phase 3 tables:
+- `study_attempts`: module/topic/objective practice evidence including optional scored counts, confidence and difficulty.
+- `weekly_plans`: versioned weekly plan headers, scheduling policy parameters, required/scheduled minutes and capacity shortfall.
+- `weekly_plan_blocks`: concrete task blocks with minimum-viable marker, rationale and evidence JSON.
+- `inferences`: provisional/developing evidence-backed hypotheses with confidence, evidence count, contradictory evidence, date range and status.
