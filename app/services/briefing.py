@@ -95,5 +95,5 @@ def morning_briefing(db: Session, brief_date: date, as_of: datetime | None = Non
         } for e in events[:6]],
         "next_action": next_action,
         "plan_version": plan.version if plan else None,
-        "presentation_note": "The briefing returns one next academic action and adjusts the suggested first block only from recorded context; it does not make medical or recovery claims.",
+        "presentation_note": "The briefing intentionally returns one next academic action rather than a giant task list, and adjusts the suggested first block only from recorded context; it does not make medical or recovery claims.",
     }
