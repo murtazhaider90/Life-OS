@@ -2,7 +2,7 @@
 
 FastAPI exposes interactive OpenAPI docs at `/docs`.
 
-Primary endpoints:
+Core planning and study:
 - `GET/POST /api/tasks`
 - `POST /api/tasks/{id}/complete`
 - `GET/POST /api/calendar`
@@ -16,9 +16,17 @@ Primary endpoints:
 - `GET /api/learning/topics`
 - `GET /api/briefing/morning?brief_date=YYYY-MM-DD`
 - `GET /api/reviews/weekly?week_start=YYYY-MM-DD`
+
+Assistant:
+- `GET /api/assistant/status` — current missing-information questions.
+- `POST /api/assistant/message` — process a typed/transcribed command. Raw transcript is not persisted.
+
+Course retrieval:
 - `POST /api/course/documents`
 - `GET /api/course/search?q=...`
 - `GET /api/evidence`
+
+Activity:
 - `POST /api/activity/events/bulk`
 - `GET /api/activity/events`
 - `GET/POST /api/activity/rules`
@@ -26,3 +34,19 @@ Primary endpoints:
 - `GET /api/activity/study-sessions/{id}/metrics`
 - `POST /api/activity/retention/prune`
 - `GET/POST /api/state-inputs`
+
+Context:
+- `GET/POST /api/context/sleep`
+- `GET/POST /api/context/training`
+- `GET/POST /api/context/meals`
+- `GET /api/context/summary`
+- `GET /api/context/weekly?week_start=YYYY-MM-DD`
+
+Focus interventions:
+- `GET/POST /api/focus/domains`
+- `POST /api/focus/domains/{id}/disable`
+- `GET /api/focus/status`
+- `GET /api/focus/recommendation`
+- `GET /api/focus/preview`
+- `POST /api/focus/apply`
+- `POST /api/focus/release`
