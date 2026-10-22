@@ -132,6 +132,31 @@
       <a href="/docs">Open API / advanced controls</a>
     </footer>
   </main>
+
+  <button id="assistant-launcher" class="assistant-launcher" aria-label="Open Life OS assistant">✦</button>
+
+  <aside id="assistant-panel" class="assistant-panel" aria-label="Life OS assistant" aria-hidden="true">
+    <header class="assistant-header">
+      <div>
+        <strong>Life OS Assistant</strong>
+        <small id="assistant-mode">Voice + text</small>
+      </div>
+      <button id="assistant-close" class="icon-button" aria-label="Close assistant">×</button>
+    </header>
+    <div id="assistant-question" class="assistant-question" hidden></div>
+    <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
+    <div class="assistant-controls">
+      <label class="assistant-toggle"><input id="assistant-speak" type="checkbox" /> Speak replies</label>
+      <div class="assistant-input-row">
+        <button id="assistant-mic" class="mic-button" type="button" aria-label="Speak to Life OS">🎙</button>
+        <input id="assistant-input" autocomplete="off" placeholder="Type or talk…" />
+        <button id="assistant-send" type="button">Send</button>
+      </div>
+      <small id="assistant-privacy" class="muted">Raw conversation transcripts are not stored in the Life OS database.</small>
+    </div>
+  </aside>
+
   <script src="/static/app.js"></script>
+  <script src="/static/assistant.js"></script>
 </body>
 </html>

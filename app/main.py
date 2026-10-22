@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from .config import get_settings
 from .db import SessionLocal, init_db
-from .routes import activity, briefing, calendar, context, documents, evidence, focus, learning, planning, reviews, state, study, tasks, weekly
+from .routes import activity, assistant, briefing, calendar, context, documents, evidence, focus, learning, planning, reviews, state, study, tasks, weekly
 from .services.adguard import AdGuardNotConfigured, AdGuardRequestError, adguard_configured
 from .services.focus import reconcile_expired_focus_mode
 
@@ -19,7 +19,6 @@ async def _focus_expiry_loop() -> None:
             with SessionLocal() as db:
                 await asyncio.to_thread(reconcile_expired_focus_mode, db)
         except (AdGuardNotConfigured, AdGuardRequestError):
-            # A filtering outage must never bring down the Life OS server.
             continue
 
 
@@ -37,7 +36,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Personal AI Life OS", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="Personal AI Life OS", version="0.5.1", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -47,7 +46,7 @@ def health():
     settings = get_settings()
     return {
         "status": "ok",
-        "version": "0.5.0",
+        "version": "0.5.1",
         "adguard_configured": bool(settings.adguard_base_url and settings.adguard_username and settings.adguard_password),
     }
 
@@ -72,5 +71,6 @@ for router in (
     state.router,
     context.router,
     focus.router,
+    assistant.router,
 ):
     app.include_router(router)

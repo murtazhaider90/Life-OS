@@ -17,6 +17,10 @@ Core planning and study:
 - `GET /api/briefing/morning?brief_date=YYYY-MM-DD`
 - `GET /api/reviews/weekly?week_start=YYYY-MM-DD`
 
+Assistant:
+- `GET /api/assistant/status` — current missing-information questions.
+- `POST /api/assistant/message` — process a typed/transcribed command. Raw transcript is not persisted.
+
 Course retrieval:
 - `POST /api/course/documents`
 - `GET /api/course/search?q=...`
