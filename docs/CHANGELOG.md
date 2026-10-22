@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 0.5.0
+- Context records for sleep, training and meals.
+- Deterministic planning-load heuristic with explicit unknown state when primary context is missing.
+- Morning briefing context adjustment.
+- AdGuard Home adapter for reversible focus-domain rules.
+- Explicit-confirmation focus mode with expiry reconciliation.
+- Soft focus recommendation from explicitly-labelled distraction only.
+- Dashboard upgraded with real input controls.
+- Weekly review now exposes recorded physical/context data.
+- GitHub CI on Python 3.11 and 3.14.
+
 ## 0.3.0
 - Versioned weekly planner with deterministic dynamic replanning.
 - Explicit minimum viable week markers and capacity shortfall reporting.

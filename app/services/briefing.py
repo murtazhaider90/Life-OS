@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..models import CalendarEvent, Task, WeeklyPlanBlock
+from .context import current_context
+from .focus import focus_recommendation
 from .planner import _ensure_tz
 from .weekly_planner import get_active_weekly_plan
 
@@ -34,6 +36,8 @@ def morning_briefing(db: Session, brief_date: date, as_of: datetime | None = Non
             if task and not task.completed and _ensure_tz(block.ends_at, tz) > now:
                 candidate_blocks.append((block, task))
 
+    context = current_context(db, as_of=now)
+    recommended_block = context["recommended_block_minutes"]
     next_action = None
     if candidate_blocks:
         block, task = candidate_blocks[0]
@@ -47,28 +51,42 @@ def morning_briefing(db: Session, brief_date: date, as_of: datetime | None = Non
             "source_material": task.source_material,
             "planned_start": block.starts_at,
             "duration_minutes": duration,
+            "suggested_initial_minutes": min(duration, recommended_block),
             "minimum_viable": block.minimum_viable,
             "instruction": f"Open {task.source_material}." if task.source_material else f"Open the material for {task.title}.",
             "why": block.rationale,
+            "context_adjustment": (
+                f"Planning load is {context['planning_load']}; start with up to {min(duration, recommended_block)} minutes before reassessing."
+            ),
         }
     else:
         pending = list(db.scalars(select(Task).where(Task.completed.is_(False))).all())
         pending.sort(key=lambda t: (t.deadline is None, _ensure_tz(t.deadline, tz) if t.deadline else datetime.max.replace(tzinfo=tz), -t.priority))
         if pending:
             task = pending[0]
+            duration = min(task.duration_minutes, 45)
             next_action = {
                 "task_id": task.id,
                 "title": task.title,
                 "module": task.module,
                 "topic": task.topic,
-                "duration_minutes": min(task.duration_minutes, 45),
+                "duration_minutes": duration,
+                "suggested_initial_minutes": min(duration, recommended_block),
                 "instruction": f"Open {task.source_material}." if task.source_material else f"Open the material for {task.title}.",
                 "why": "No active weekly block remains today, so this is the highest-priority pending task by deadline/priority.",
+                "context_adjustment": (
+                    f"Planning load is {context['planning_load']}; start with up to {min(duration, recommended_block)} minutes before reassessing."
+                ),
             }
 
     return {
         "date": brief_date,
-        "sleep": {"status": "not_available", "reason": "sleep integration is not enabled; no sleep duration is inferred"},
+        "sleep": context["sleep"] or {
+            "status": "not_available",
+            "reason": "no recent sleep record is available; no duration is inferred",
+        },
+        "context": context,
+        "focus_intervention": focus_recommendation(db, as_of=now),
         "today": [{
             "title": e.title,
             "starts_at": e.starts_at,
@@ -77,5 +95,5 @@ def morning_briefing(db: Session, brief_date: date, as_of: datetime | None = Non
         } for e in events[:6]],
         "next_action": next_action,
         "plan_version": plan.version if plan else None,
-        "presentation_note": "The briefing intentionally returns a short schedule and one next academic action rather than a giant task list.",
+        "presentation_note": "The briefing returns one next academic action and adjusts the suggested first block only from recorded context; it does not make medical or recovery claims.",
     }

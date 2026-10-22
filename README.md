@@ -1,37 +1,47 @@
-# Personal AI Life OS — Phase 3
+# Personal AI Life OS — Phase 4/5 milestone
 
-A local-first, single-user system for evidence-based planning, academic retrieval, privacy-minimal behavioral tracking, and adaptive weekly planning.
+A local-first, single-user system for evidence-based planning, academic retrieval, privacy-minimal behavioral tracking, context-aware scheduling, and explicit focus interventions.
 
-## Current capabilities
+## What works now
 
-- Provenance-aware evidence records (`FACT`, `OBSERVATION`, `USER_ESTIMATE`, `AI_INFERENCE`, `AI_RECOMMENDATION`, `EXTERNAL_SOURCE`).
-- Concrete tasks with module/topic/objective/output/source metadata.
-- Calendar events with duplicate detection and explicit source fields.
-- Deterministic daily and weekly planning with calendar conflict checks and explainable evidence.
-- Versioned dynamic replanning after missed work instead of blindly shifting every block forward.
-- Minimum viable week marking based on due work, high-priority module work, and sufficiently evidenced weak topics.
-- Study sessions plus recorded problem/practice attempts with accuracy, confidence, difficulty, and learning-objective metadata.
-- Transparent weak-topic/retrieval heuristics with evidence counts and no scientific/medical framing.
-- Morning briefing endpoint and dashboard next-action display.
-- Weekly academic/behavioral/planning review with explicit missing-data reporting for Phase 5 context signals.
-- Course PDF/TXT/Markdown ingestion, chunking, metadata, SHA-256 deduplication, and local SQLite FTS5 retrieval.
-- Phase 2 minimal computer activity ingestion, explicit study/distraction rules, session start-latency/distraction metrics, and low-friction energy/focus inputs.
-- Optional desktop foreground-app sampler and hostname-only browser extension under `collectors/`.
-- Provider-neutral `AIProvider` interface; deterministic features require no AI vendor.
-- Localhost-first access; bearer token required when not operating unauthenticated on loopback.
+- Provenance-aware tasks, calendar, study sessions, learning attempts, course-document retrieval, daily planning and versioned weekly planning.
+- Weak-topic and retrieval-due heuristics from recorded attempts only.
+- Dynamic replanning with missed-block and capacity-shortfall reporting.
+- Morning briefing with one next action.
+- Local app/domain activity sampling with explicit user rules for study/distraction/neutral.
+- Sleep, training and meal context records.
+- Deterministic planning-load signal that uses recorded sleep/state/training data and leaves missing data unknown.
+- Dashboard forms for task creation, task completion, energy/focus check-ins, sleep logging and weekly-plan generation.
+- Optional AdGuard Home focus mode with explicit confirmation, rule preservation, automatic expiry reconciliation and manual release.
+- Focus-mode recommendation based only on explicitly-labelled distraction activity.
+- Weekly context summaries alongside academic/behavioral/planning reviews.
+- GitHub CI on Python 3.11 and 3.14.
+- Provider-neutral `AIProvider`; core planning does not require a cloud AI vendor.
 
-## Run locally
+## Run locally on Windows
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-cp .env.example .env
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+```powershell
+cd "C:\Users\Murtaza Haider\Life-OS"
+.venv\Scripts\Activate.ps1
+git pull
+python -m pip install -e ".[dev]"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://127.0.0.1:8000`. Interactive API documentation is at `/docs`.
+Open `http://127.0.0.1:8000`. Advanced API controls remain at `/docs`.
+
+## Optional AdGuard Home
+
+Leave the AdGuard settings blank unless you actually run AdGuard Home. When ready, put these in `.env`:
+
+```text
+LIFE_OS_ADGUARD_BASE_URL=http://192.168.1.10:3000
+LIFE_OS_ADGUARD_USERNAME=...
+LIFE_OS_ADGUARD_PASSWORD=...
+```
+
+Credentials are read from the environment and are not stored in the Life OS database.
 
 ## Evidence boundaries
 
-Phase 3 still does not infer sleep, training recovery, meal effects, location context, or medical/psychological states. Unlabelled activity is never assumed to be distraction. Learning status is an internal planning heuristic based only on recorded attempts. Behavioral comparisons (for example, music on/off) require minimum sample counts, remain observational, and are stored as provisional/developing inferences rather than facts.
+Planning-load outputs are scheduling heuristics, not medical, sleep, nutrition, or recovery assessments. Missing sleep/state data produces `unknown_capacity`, not a fabricated normal state. Unlabelled app/site activity is not distraction. Network blocking never starts from an AI inference and requires an explicit user action.
