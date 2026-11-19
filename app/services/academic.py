@@ -12,7 +12,7 @@ from ..config import get_settings
 from ..models import CourseChunk, CourseDocument, ProvenanceType, StudyAttempt, Task
 from .ai import AIMessage, AIProvider, UnconfiguredAIProvider, get_ai_provider
 from .learning import topic_evidence
-from .rag import search_course
+from .rag import detect_untrusted_instructions, search_course
 
 
 _ASSESSMENT_WORDS = ("assessment", "coursework", "assignment", "exam", "report", "project", "lab")
@@ -273,24 +273,47 @@ def analyse_document_structure(db: Session, document_id: int, *, persist: bool =
     }
 
 
-def _fact_tokens(content: str) -> set[str]:
-    values = set(re.findall(r"\b\d{1,3}(?:\.\d+)?\s*%", content))
+def _fact_tokens(content: str) -> dict[str, set[str]]:
+    percentages = set(re.findall(r"\b\d{1,3}(?:\.\d+)?\s*%", content))
+    dates: set[str] = set()
     for _, pattern in _DATE_PATTERNS:
-        values.update(match.group(1) for match in pattern.finditer(content))
-    return values
+        dates.update(match.group(1) for match in pattern.finditer(content))
+    return {"percentages": percentages, "dates": dates}
 
 
 def _conflict_warning(question: str, sources: list[dict]) -> str | None:
     q = question.casefold()
-    if not any(word in q for word in ("deadline", "due", "date", "weight", "worth", "percent", "%")):
+    wants_percent = any(word in q for word in ("weight", "worth", "percent", "%"))
+    wants_date = any(word in q for word in ("deadline", "due", "date", "when"))
+    if not wants_percent and not wants_date:
         return None
-    values: dict[str, set[str]] = {}
+
+    by_kind: dict[str, dict[str, set[str]]] = {"percentages": {}, "dates": {}}
     for source in sources:
-        for value in _fact_tokens(source["content"]):
-            values.setdefault(value, set()).add(source["source_id"])
-    if len(values) > 1:
-        detail = ", ".join(f"{value} ({'/'.join(sorted(ids))})" for value, ids in sorted(values.items()))
-        return f"Retrieved sources contain differing date/percentage values: {detail}. Review the cited sources rather than silently choosing one."
+        facts = _fact_tokens(source["content"])
+        for kind, values in facts.items():
+            for value in values:
+                by_kind[kind].setdefault(value, set()).add(source["source_id"])
+
+    conflicts: list[str] = []
+    if wants_percent and len(by_kind["percentages"]) > 1:
+        detail = ", ".join(
+            f"{value} ({'/'.join(sorted(ids))})"
+            for value, ids in sorted(by_kind["percentages"].items())
+        )
+        conflicts.append(f"percentage values differ: {detail}")
+    if wants_date and len(by_kind["dates"]) > 1:
+        detail = ", ".join(
+            f"{value} ({'/'.join(sorted(ids))})"
+            for value, ids in sorted(by_kind["dates"].items())
+        )
+        conflicts.append(f"date values differ: {detail}")
+
+    if conflicts:
+        return (
+            "Retrieved sources conflict: " + "; ".join(conflicts)
+            + ". Review the cited sources rather than silently choosing one."
+        )
     return None
 
 
@@ -305,6 +328,8 @@ def _best_sentences(question: str, sources: list[dict], count: int = 3) -> list[
         for sentence in sentences:
             clean = re.sub(r"\s+", " ", sentence).strip()
             if len(clean) < 20:
+                continue
+            if detect_untrusted_instructions(clean):
                 continue
             overlap = sum(1 for term in terms if term in clean.casefold())
             if overlap:
