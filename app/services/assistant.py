@@ -5,10 +5,19 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from ..academic_models import Assessment, MistakeRecord
 from ..config import get_settings
 from ..context_models import SleepRecord
-from ..models import CalendarEvent, Task, UserStateInput
+from ..models import CalendarEvent, CourseDocument, Task, UserStateInput
+from .academic import (
+    answer_academic_question,
+    assessment_breakdown,
+    generate_retrieval_quiz,
+    revision_plan,
+)
 from .briefing import morning_briefing
+from .learning import topic_evidence
 from .weekly_planner import build_weekly_plan, get_active_weekly_plan
 
 
@@ -47,6 +56,16 @@ def assistant_prompts(db: Session, now: datetime | None = None) -> list[dict]:
             "prompt": "What is one real task you need to get done?",
             "reason": "I cannot plan useful work until at least one pending task exists.",
             "example": "Add task finish lab report for 90 minutes priority 5",
+        })
+
+    course_document_count = len(db.scalars(select(CourseDocument.id)).all())
+    if course_document_count == 0:
+        prompts.append({
+            "id": "missing_course_material",
+            "priority": 90,
+            "prompt": "Academic Brain has no university material yet. Which module folder should we import first?",
+            "reason": "Grounded tutoring, citations, quizzes and syllabus extraction require your actual course sources.",
+            "example": "Use the dashboard Academic Brain uploader or the folder-import command.",
         })
 
     upcoming = db.scalars(select(CalendarEvent).where(
@@ -103,7 +122,11 @@ def assistant_prompts(db: Session, now: datetime | None = None) -> list[dict]:
 
 
 def _parse_rating(text: str, label: str) -> int | None:
-    match = re.search(rf"\b{label}\b(?:\s+(?:is|at))?\s*[:=-]?\s*(one|two|three|four|five|[1-5])\b", text, re.I)
+    match = re.search(
+        rf"\b{label}\b(?:\s+(?:is|at))?\s*[:=-]?\s*(one|two|three|four|five|[1-5])\b",
+        text,
+        re.I,
+    )
     return _number(match.group(1)) if match else None
 
 
@@ -143,13 +166,21 @@ def _parse_sleep(text: str, now: datetime) -> tuple[datetime, datetime] | None:
 
 
 def _parse_deadline(text: str, now: datetime) -> datetime | None:
-    iso = re.search(r"\bdue\s+(\d{4}-\d{2}-\d{2})(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?", text, re.I)
+    iso = re.search(
+        r"\bdue\s+(\d{4}-\d{2}-\d{2})(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?",
+        text,
+        re.I,
+    )
     if iso:
         day = date.fromisoformat(iso.group(1))
         h, m = _parse_clock(iso.group(2), iso.group(3), iso.group(4)) if iso.group(2) else (17, 0)
         return datetime.combine(day, time(h, m), tzinfo=now.tzinfo)
 
-    weekday = re.search(r"\bdue\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", text, re.I)
+    weekday = re.search(
+        r"\bdue\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+        text,
+        re.I,
+    )
     if weekday:
         target = _WEEKDAYS[weekday.group(1).lower()]
         delta = (target - now.weekday()) % 7 or 7
@@ -183,8 +214,18 @@ def _task_from_text(text: str, now: datetime) -> tuple[str, int, int, datetime |
     title = raw
     title = re.sub(r"\bfor\s+\d+\s*(?:minutes?|mins?|hours?|hrs?)\b", "", title, flags=re.I)
     title = re.sub(r"\bpriority\s*[1-5]\b", "", title, flags=re.I)
-    title = re.sub(r"\bdue\s+\d{4}-\d{2}-\d{2}(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?", "", title, flags=re.I)
-    title = re.sub(r"\bdue\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", "", title, flags=re.I)
+    title = re.sub(
+        r"\bdue\s+\d{4}-\d{2}-\d{2}(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?",
+        "",
+        title,
+        flags=re.I,
+    )
+    title = re.sub(
+        r"\bdue\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+        "",
+        title,
+        flags=re.I,
+    )
     title = re.sub(r"\s+", " ", title).strip(" ,.-")
     if not title:
         raise ValueError("I need a task title.")
@@ -210,6 +251,57 @@ def _event_from_text(text: str, now: datetime) -> tuple[str, datetime, datetime]
     return title, start, end
 
 
+def _academic_question(clean: str, db: Session) -> str | None:
+    patterns = [
+        r"^ask\s+(?:my\s+)?course(?:\s+material)?\s*[:,-]?\s*(.+)$",
+        r"^what\s+do\s+my\s+(?:notes|course\s+material|materials)\s+say\s+about\s+(.+)$",
+        r"^according\s+to\s+my\s+(?:notes|course\s+material|materials)\s*[,:-]?\s*(.+)$",
+        r"^explain\s+(.+?)\s+from\s+my\s+(?:notes|course\s+material|materials)$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, clean, re.I)
+        if match:
+            return match.group(1).strip()
+
+    # Once course material exists, "explain X" is treated as an academic request.
+    if db.scalar(select(CourseDocument.id).limit(1)):
+        match = re.match(r"^(?:explain|teach\s+me)\s+(.+)$", clean, re.I)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _format_academic_answer(result: dict) -> str:
+    parts = [result["answer"]]
+    if result.get("conflict_warning"):
+        parts.append("Warning: " + result["conflict_warning"])
+    sources = result.get("sources") or []
+    if sources:
+        mapping = []
+        for source in sources[:6]:
+            page = f", p.{source['page']}" if source.get("page") else ""
+            mapping.append(
+                f"[{source['source_id']}] {source['title']}{page} ({source['document_type']})"
+            )
+        parts.append("Sources:\n" + "\n".join(mapping))
+    if result.get("security_flags"):
+        parts.append(
+            "Safety note: one or more retrieved documents contained instruction-like text; "
+            "it was treated as untrusted document content, not as assistant instructions."
+        )
+    return "\n\n".join(parts)
+
+
+def _find_assessment(db: Session, title_text: str) -> Assessment | None:
+    rows = db.scalars(select(Assessment).order_by(Assessment.deadline, Assessment.id)).all()
+    needle = title_text.casefold().strip()
+    exact = next((a for a in rows if a.title.casefold() == needle), None)
+    if exact:
+        return exact
+    matches = [a for a in rows if needle in a.title.casefold() or a.title.casefold() in needle]
+    return matches[0] if matches else None
+
+
 def handle_assistant_message(db: Session, text: str, now: datetime | None = None) -> dict:
     now = _local_now(now)
     clean = text.strip()
@@ -217,17 +309,31 @@ def handle_assistant_message(db: Session, text: str, now: datetime | None = None
 
     if lowered in {"help", "what can you do", "what can i say"}:
         return {
-            "reply": "You can say: “Energy 3, focus 2”, “Add task finish lab report for 90 minutes priority 5”, “Add event lecture on 2026-10-26 from 10 am to 11 am”, “I slept from 1 am to 7 am”, “Generate my weekly plan”, or “What should I do now?”.",
+            "reply": (
+                "Life commands: “Energy 3, focus 2”, “Add task finish lab report for 90 minutes priority 5”, "
+                "“Add event lecture on 2026-10-26 from 10 am to 11 am”, “I slept from 1 am to 7 am”, "
+                "“Generate my weekly plan”, or “What should I do now?”.\n\n"
+                "Academic Brain: “Explain boundary layers from my course material”, “What do my notes say about Bernoulli?”, "
+                "“Quiz me on compressible flow”, “What are my weak topics?”, “Make a revision plan”, "
+                "“Break down assessment <name>”, or “Record mistake Module | Topic | what went wrong”."
+            ),
             "action": "help",
             "stored_raw_transcript": False,
         }
 
-    if any(phrase in lowered for phrase in ("what should i do", "what do i do now", "next action", "what's next", "whats next")):
+    if any(
+        phrase in lowered
+        for phrase in ("what should i do", "what do i do now", "next action", "what's next", "whats next")
+    ):
         briefing = morning_briefing(db, now.date(), as_of=now)
         action = briefing.get("next_action")
         if action:
             return {
-                "reply": f"Do {action['title']}. Start with {action.get('suggested_initial_minutes') or action['duration_minutes']} minutes. {action.get('instruction') or ''}".strip(),
+                "reply": (
+                    f"Do {action['title']}. Start with "
+                    f"{action.get('suggested_initial_minutes') or action['duration_minutes']} minutes. "
+                    f"{action.get('instruction') or ''}"
+                ).strip(),
                 "action": "next_action",
                 "data": action,
                 "stored_raw_transcript": False,
@@ -242,18 +348,159 @@ def handle_assistant_message(db: Session, text: str, now: datetime | None = None
         monday = now.date() - timedelta(days=now.weekday())
         result = build_weekly_plan(db, monday)
         return {
-            "reply": f"Done. Weekly plan version {result['version']} has {len(result['blocks'])} blocks and {result['capacity_shortfall_minutes']} minutes of capacity shortfall.",
+            "reply": (
+                f"Done. Weekly plan version {result['version']} has {len(result['blocks'])} blocks "
+                f"and {result['capacity_shortfall_minutes']} minutes of capacity shortfall."
+            ),
             "action": "generate_weekly_plan",
-            "data": {"version": result["version"], "blocks": len(result["blocks"]), "capacity_shortfall_minutes": result["capacity_shortfall_minutes"]},
+            "data": {
+                "version": result["version"],
+                "blocks": len(result["blocks"]),
+                "capacity_shortfall_minutes": result["capacity_shortfall_minutes"],
+            },
+            "stored_raw_transcript": False,
+        }
+
+    if "weak topic" in lowered or "weak areas" in lowered:
+        rows = topic_evidence(db, as_of=now)
+        weak = [r for r in rows if r["status"] in {"weak", "requires_retrieval", "developing"}]
+        if not weak:
+            reply = "I do not have enough recorded attempt evidence to identify a weak topic yet."
+        else:
+            lines = [
+                f"- {r['module']} — {r['topic']}: {r['status']} ({'; '.join(r['reasons'])})"
+                for r in weak[:10]
+            ]
+            reply = "Evidence-backed learning priorities:\n" + "\n".join(lines)
+        return {
+            "reply": reply,
+            "action": "learning_evidence",
+            "data": weak,
+            "stored_raw_transcript": False,
+        }
+
+    quiz_match = re.match(r"^(?:quiz|test)\s+me\s+on\s+(.+)$", clean, re.I)
+    if quiz_match:
+        topic = quiz_match.group(1).strip()
+        quiz = generate_retrieval_quiz(db, topic=topic, count=5)
+        if not quiz["questions"]:
+            reply = f"I could not build a source-backed quiz on {topic}. Upload relevant course material first."
+        else:
+            lines = [f"{i}. {q['question']}" for i, q in enumerate(quiz["questions"], start=1)]
+            reply = (
+                f"Source-backed retrieval quiz on {topic}:\n"
+                + "\n".join(lines)
+                + "\n\nAnswer from memory first. The answer keys remain in the structured quiz result."
+            )
+        return {
+            "reply": reply,
+            "action": "academic_quiz",
+            "data": quiz,
+            "stored_raw_transcript": False,
+        }
+
+    if "revision plan" in lowered:
+        create_tasks = any(phrase in lowered for phrase in ("create tasks", "add tasks", "make tasks"))
+        result = revision_plan(db, create_tasks=create_tasks, as_of=now)
+        recs = result["recommendations"]
+        if not recs:
+            reply = "I do not yet have enough course objectives, attempts, or assessment deadlines to build a revision plan."
+        else:
+            lines = [
+                f"- {r['module']} — {r['topic']}: {r['activity']} ({r['duration_minutes']} min)"
+                for r in recs[:8]
+            ]
+            suffix = (
+                f"\n\nCreated {len(result['created_task_ids'])} revision tasks."
+                if create_tasks else
+                "\n\nSay “make revision plan and create tasks” if you want these added to the planner."
+            )
+            reply = "Revision priorities:\n" + "\n".join(lines) + suffix
+        return {
+            "reply": reply,
+            "action": "revision_plan",
+            "data": result,
+            "stored_raw_transcript": False,
+        }
+
+    breakdown_match = re.match(
+        r"^break\s+down\s+(?:my\s+)?(?:assessment|coursework|assignment)\s+(.+?)(?:\s+and\s+(?:create|add)\s+tasks)?$",
+        clean,
+        re.I,
+    )
+    if breakdown_match:
+        title_text = breakdown_match.group(1).strip()
+        create_tasks = bool(re.search(r"\band\s+(?:create|add)\s+tasks\b", clean, re.I))
+        assessment = _find_assessment(db, title_text)
+        if not assessment:
+            return {
+                "reply": f"I could not find an assessment matching “{title_text}”. I did not invent one.",
+                "action": "assessment_not_found",
+                "stored_raw_transcript": False,
+            }
+        result = assessment_breakdown(db, assessment.id, create_tasks=create_tasks)
+        lines = [
+            f"- {a['title']} ({a['duration_minutes']} min) → {a['expected_output']}"
+            for a in result["actions"]
+        ]
+        suffix = (
+            f"\n\nCreated {len(result['created_task_ids'])} planner tasks."
+            if create_tasks else
+            "\n\nSay the same command with “and create tasks” to add them to the planner."
+        )
+        return {
+            "reply": f"Breakdown for {assessment.title}:\n" + "\n".join(lines) + suffix,
+            "action": "assessment_breakdown",
+            "data": result,
+            "stored_raw_transcript": False,
+        }
+
+    mistake_match = re.match(r"^record\s+mistake\s+([^|]+)\|([^|]+)\|(.+)$", clean, re.I)
+    if mistake_match:
+        module, topic, description = (part.strip() for part in mistake_match.groups())
+        row = MistakeRecord(
+            module=module,
+            topic=topic,
+            occurred_at=now,
+            description=description,
+            source="voice_or_text_assistant",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return {
+            "reply": f"Recorded the mistake under {module} — {topic}. It stays unresolved until you mark it resolved.",
+            "action": "mistake_recorded",
+            "data": {"id": row.id, "module": module, "topic": topic},
+            "stored_raw_transcript": False,
+        }
+
+    academic_question = _academic_question(clean, db)
+    if academic_question:
+        result = answer_academic_question(db, academic_question)
+        return {
+            "reply": _format_academic_answer(result),
+            "action": "academic_answer",
+            "data": result,
             "stored_raw_transcript": False,
         }
 
     energy = _parse_rating(clean, "energy")
     focus = _parse_rating(clean, "focus")
     if energy is not None or focus is not None:
-        row = UserStateInput(observed_at=now, energy=energy, focus=focus, source="voice_or_text_assistant")
-        db.add(row); db.commit(); db.refresh(row)
-        pieces = ([f"energy {energy}/5"] if energy is not None else []) + ([f"focus {focus}/5"] if focus is not None else [])
+        row = UserStateInput(
+            observed_at=now,
+            energy=energy,
+            focus=focus,
+            source="voice_or_text_assistant",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        pieces = (
+            ([f"energy {energy}/5"] if energy is not None else [])
+            + ([f"focus {focus}/5"] if focus is not None else [])
+        )
         return {
             "reply": f"Saved {' and '.join(pieces)}. I will use that only as a user estimate for planning.",
             "action": "state_input",
@@ -264,13 +511,27 @@ def handle_assistant_message(db: Session, text: str, now: datetime | None = None
     sleep = _parse_sleep(clean, now)
     if sleep:
         start, end = sleep
-        row = SleepRecord(sleep_start=start, sleep_end=end, source="voice_or_text_assistant")
-        db.add(row); db.commit(); db.refresh(row)
+        row = SleepRecord(
+            sleep_start=start,
+            sleep_end=end,
+            source="voice_or_text_assistant",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
         minutes = int((end - start).total_seconds() // 60)
         return {
-            "reply": f"Saved a {minutes // 60}h {minutes % 60}m sleep record ending at {end.strftime('%H:%M')}. I treated the times as the most recent overnight interval.",
+            "reply": (
+                f"Saved a {minutes // 60}h {minutes % 60}m sleep record ending at "
+                f"{end.strftime('%H:%M')}. I treated the times as the most recent overnight interval."
+            ),
             "action": "sleep_record",
-            "data": {"id": row.id, "sleep_start": start, "sleep_end": end, "duration_minutes": minutes},
+            "data": {
+                "id": row.id,
+                "sleep_start": start,
+                "sleep_end": end,
+                "duration_minutes": minutes,
+            },
             "stored_raw_transcript": False,
         }
 
@@ -295,11 +556,21 @@ def handle_assistant_message(db: Session, text: str, now: datetime | None = None
             event_type="fixed",
             source="voice_or_text_assistant",
         )
-        db.add(event); db.commit(); db.refresh(event)
+        db.add(event)
+        db.commit()
+        db.refresh(event)
         return {
-            "reply": f"Added {title} on {starts_at.strftime('%a %d %b')} from {starts_at.strftime('%H:%M')} to {ends_at.strftime('%H:%M')}.",
+            "reply": (
+                f"Added {title} on {starts_at.strftime('%a %d %b')} "
+                f"from {starts_at.strftime('%H:%M')} to {ends_at.strftime('%H:%M')}."
+            ),
             "action": "event_created",
-            "data": {"id": event.id, "title": title, "starts_at": starts_at, "ends_at": ends_at},
+            "data": {
+                "id": event.id,
+                "title": title,
+                "starts_at": starts_at,
+                "ends_at": ends_at,
+            },
             "stored_raw_transcript": False,
         }
 
@@ -314,17 +585,29 @@ def handle_assistant_message(db: Session, text: str, now: datetime | None = None
             deadline=deadline,
             source="voice_or_text_assistant",
         )
-        db.add(task); db.commit(); db.refresh(task)
+        db.add(task)
+        db.commit()
+        db.refresh(task)
         due_text = f", due {deadline.strftime('%a %d %b %H:%M')}" if deadline else ""
         return {
             "reply": f"Added “{title}” for {duration} minutes at priority {priority}{due_text}.",
             "action": "task_created",
-            "data": {"id": task.id, "title": task.title, "duration_minutes": duration, "priority": priority, "deadline": deadline},
+            "data": {
+                "id": task.id,
+                "title": task.title,
+                "duration_minutes": duration,
+                "priority": priority,
+                "deadline": deadline,
+            },
             "stored_raw_transcript": False,
         }
 
     prompts = assistant_prompts(db, now)
-    suggestion = prompts[0]["prompt"] if prompts else "Ask “what should I do now?” or tell me a task, commitment, energy/focus rating, sleep interval, or to generate the weekly plan."
+    suggestion = (
+        prompts[0]["prompt"]
+        if prompts
+        else "Ask what you should do now, ask an academic question from your material, request a quiz/revision plan, or give me a structured life update."
+    )
     return {
         "reply": f"I did not change anything because I could not map that safely to a structured action. {suggestion}",
         "action": "no_action",

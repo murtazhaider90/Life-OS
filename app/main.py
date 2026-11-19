@@ -3,10 +3,29 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
 from .config import get_settings
 from .db import SessionLocal, init_db
-from .routes import activity, assistant, briefing, calendar, context, documents, evidence, focus, learning, planning, reviews, state, study, tasks, weekly
+from .routes import (
+    academic,
+    activity,
+    assistant,
+    briefing,
+    calendar,
+    context,
+    documents,
+    evidence,
+    focus,
+    learning,
+    planning,
+    reviews,
+    state,
+    study,
+    tasks,
+    weekly,
+)
 from .services.adguard import AdGuardNotConfigured, AdGuardRequestError, adguard_configured
+from .services.ai import ai_provider_status
 from .services.focus import reconcile_expired_focus_mode
 
 
@@ -36,7 +55,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Personal AI Life OS", version="0.5.1", lifespan=lifespan)
+app = FastAPI(title="Personal AI Life OS", version="0.7.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -46,8 +65,13 @@ def health():
     settings = get_settings()
     return {
         "status": "ok",
-        "version": "0.5.1",
-        "adguard_configured": bool(settings.adguard_base_url and settings.adguard_username and settings.adguard_password),
+        "version": "0.7.0",
+        "adguard_configured": bool(
+            settings.adguard_base_url
+            and settings.adguard_username
+            and settings.adguard_password
+        ),
+        "academic_ai": ai_provider_status(),
     }
 
 
@@ -66,6 +90,7 @@ for router in (
     reviews.router,
     briefing.router,
     documents.router,
+    academic.router,
     evidence.router,
     activity.router,
     state.router,
