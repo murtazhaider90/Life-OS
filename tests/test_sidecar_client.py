@@ -29,3 +29,15 @@ def test_sidecar_client_wraps_connection_errors():
     client = LifeOSClient(transport=httpx.MockTransport(handler))
     with pytest.raises(LifeOSConnectionError):
         client.health()
+
+
+def test_sidecar_client_surfaces_backend_detail():
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            json={"detail": "Assistant request failed safely (OperationalError). Check server.err.log for the traceback."},
+        )
+
+    client = LifeOSClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(LifeOSConnectionError, match="OperationalError"):
+        client.send_message("hello")
