@@ -3,35 +3,64 @@
 ## Core shape
 
 ```text
-Browser dashboard
-  |
-FastAPI application
-  |-- deterministic daily/weekly planner
-  |-- morning briefing + planning-load context
-  |-- document ingestion + local FTS retrieval
-  |-- study/learning/activity/context APIs
-  |-- explicit focus intervention service
-  |-- AdGuard Home adapter (optional)
-  |-- provenance boundary
-  |-- AIProvider abstraction (optional, unconfigured)
-  |
-SQLite (WAL + foreign keys + FTS5)
+Browser dashboard          Windows sidecar
+       \                       /
+        \                     /
+             FastAPI
+                |
+     +----------+----------+
+     |          |          |
+  Planner   Academic Brain State/Activity
+     |          |          |
+     |     course ingestion
+     |     SQLite FTS5
+     |     source verifier
+     |     syllabus/assessment parser
+     |     learning/revision engine
+     |     optional AIProvider
+     |          |
+     +----------+----------+
+                |
+          Evidence boundary
+                |
+      SQLite WAL + foreign keys
 ```
 
-Date arithmetic, scheduling conflicts, database integrity, provenance, access control and network-rule mutations are normal software. LLMs are reserved for future interpretation/tutoring/explanation and may not silently own those deterministic decisions.
+## Deterministic versus AI responsibilities
 
-## Local-first data
+Normal software owns:
+- database integrity and migrations;
+- file hashing/deduplication;
+- retrieval and source ranking;
+- deadline/date parsing when explicit;
+- citation-ID validation;
+- planning conflicts and arithmetic;
+- task persistence;
+- permissions/security;
+- focus/network mutations.
 
-SQLite remains the source of truth for one-user operation. Phase 2 collectors send only minimal app/domain observations. Phase 4/5 context records are explicit user/external-source records and are not scraped from unrelated private content.
+AI may be used selectively for:
+- explanation;
+- tutoring;
+- synthesis across a validated retrieved source set;
+- natural-language interpretation.
 
-## Planning intelligence
+The application remains usable without an AI provider.
 
-Weekly plans are versioned. Replanning creates a new version. Weak-topic descriptors come from recorded study attempts. The current-context service adds a separate short-term planning-load signal for the first study block; it does not rewrite historical facts or make medical/recovery claims.
+## Academic Brain
+
+Course documents are parsed locally, chunked and stored in SQLite. Retrieval uses FTS5 plus a source hierarchy.
+
+Retrieved text is an evidence input, never an instruction channel. Prompt-injection-like source text is flagged. Optional provider synthesis receives explicit instructions to ignore commands inside source blocks.
+
+Provider citations are checked against the actual retrieval set. Verification failure causes extractive fallback.
+
+Learning objectives, assessments and mistakes live in structured tables rather than chat memory. Revision planning combines those records with study-attempt evidence.
+
+## Personal planning
+
+Weekly plans are versioned. Replanning creates a new version. Weak-topic descriptors come from recorded attempts. Context data can adjust the suggested initial work block but does not create medical/recovery claims.
 
 ## Intervention boundary
 
-Focus mode is a separate service from the planner. A recommendation can be produced from explicitly-labelled distraction observations, but network blocking requires explicit confirmation. AdGuard Home credentials are environment-only. The adapter fetches the current user-rule list, preserves it, and tracks ownership of rules Life OS itself adds before removing anything.
-
-## Evolution
-
-Future work can add real wearable/calendar/device adapters, notification delivery, stronger migrations, and the optional Architect Agent. Those integrations should plug into the existing provenance/context boundaries rather than bypassing them.
+Focus mode is separate from Academic Brain and the planner. Network filtering requires explicit confirmation and can never be triggered merely because a model generated a recommendation.

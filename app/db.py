@@ -34,8 +34,6 @@ def _sqlite_columns(conn, table_name: str) -> set[str]:
 
 
 def _apply_sqlite_compat_migrations(conn) -> None:
-    # create_all() creates new tables but does not add columns to existing SQLite tables.
-    # Keep these tiny additive migrations explicit and deterministic for local upgrades.
     tables = {
         str(row["name"])
         for row in conn.execute(
@@ -55,7 +53,7 @@ def _apply_sqlite_compat_migrations(conn) -> None:
 
 
 def init_db() -> None:
-    from . import context_models, models  # noqa: F401
+    from . import academic_models, context_models, models  # noqa: F401
 
     Base.metadata.create_all(engine)
     if settings.db_url.startswith("sqlite"):
