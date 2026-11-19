@@ -1,7 +1,17 @@
 # CHANGELOG
 
+## 0.6.0
+- Windows always-on-top Life OS sidecar.
+- Global Ctrl + Alt + Space show/hide hotkey.
+- Native Windows Voice Typing launch from the assistant.
+- Optional Windows speech-synthesis replies.
+- Proactive desktop prompts driven by the deterministic missing-information queue.
+- One-click background launcher, stop script, and desktop-shortcut installer.
+- Sidecar HTTP client regression tests.
+- CI compile checks now include the desktop package.
+
 ## 0.5.1
-- Persistent right-side Life OS assistant.
+- Persistent right-side Life OS browser assistant.
 - Proactive missing-information question queue.
 - Browser voice-to-text with on-device preference and explicit warning before browser-service fallback.
 - Optional spoken assistant replies.
