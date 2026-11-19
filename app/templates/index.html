@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Personal AI Life OS</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/academic.css" />
 </head>
 <body>
   <main>
     <header class="hero">
       <div>
         <h1>Personal AI Life OS</h1>
-        <p>Plan the week, record what actually happened, and adapt from evidence.</p>
+        <p>Plan the week, learn from your actual material, and adapt from evidence.</p>
       </div>
       <span id="system-status" class="pill">Loading…</span>
     </header>
@@ -30,6 +31,63 @@
         <div id="week-summary">No weekly plan loaded.</div>
         <button id="generate-week">Generate / refresh weekly plan</button>
       </article>
+    </section>
+
+    <section class="card academic-wide">
+      <div class="academic-header">
+        <div>
+          <h2>Academic Brain</h2>
+          <p class="muted">Grounded in your uploaded university material. Important claims stay tied to document/page evidence.</p>
+        </div>
+        <span id="academic-mode" class="pill">Loading…</span>
+      </div>
+
+      <div class="academic-grid">
+        <form id="academic-upload-form" class="stack">
+          <h3>Ingest course material</h3>
+          <input name="module" placeholder="Module name" required />
+          <input name="academic_year" placeholder="Academic year, e.g. 2026/27" />
+          <label>
+            PDFs, Word, PowerPoint, TXT or Markdown
+            <input name="files" type="file" multiple accept=".pdf,.docx,.pptx,.txt,.md,.markdown" required />
+          </label>
+          <button type="submit">Ingest selected files</button>
+          <small>For whole folders with subfolders/week structure, use the local folder importer documented below the dashboard.</small>
+        </form>
+
+        <form id="academic-ask-form" class="stack">
+          <h3>Ask your material</h3>
+          <input name="module" placeholder="Module filter (optional)" />
+          <textarea name="question" rows="5" placeholder="e.g. Explain the assumptions behind Bernoulli's equation from my course material" required></textarea>
+          <label class="assistant-toggle">
+            <input name="allow_general" type="checkbox" />
+            Allow clearly-labelled general model knowledge if sources are insufficient
+          </label>
+          <button type="submit">Ask Academic Brain</button>
+        </form>
+
+        <div class="stack">
+          <h3>Learning priorities</h3>
+          <div id="academic-summary" class="muted">No academic status loaded yet.</div>
+          <div class="button-row academic-buttons">
+            <button id="academic-revision" type="button">Build revision plan</button>
+            <button id="academic-revision-tasks" type="button">Add revision tasks</button>
+          </div>
+          <button id="academic-refresh" type="button" class="secondary">Refresh academic status</button>
+        </div>
+      </div>
+
+      <div id="academic-answer" class="academic-output" hidden></div>
+      <div class="academic-lists">
+        <div>
+          <h3>Modules</h3>
+          <div id="academic-modules" class="muted">None yet.</div>
+        </div>
+        <div>
+          <h3>Assessments</h3>
+          <div id="academic-assessments" class="muted">None yet.</div>
+        </div>
+      </div>
     </section>
 
     <section class="grid">
@@ -128,7 +186,7 @@
     <section id="toast" class="toast" hidden></section>
 
     <footer>
-      <p>Grounding rule: facts, observations, estimates, inferences, and recommendations stay separate. Missing data stays missing.</p>
+      <p>Grounding rule: facts, observations, estimates, inferences, recommendations and source material stay separate. Missing data stays missing.</p>
       <a href="/docs">Open API / advanced controls</a>
     </footer>
   </main>
@@ -157,6 +215,7 @@
   </aside>
 
   <script src="/static/app.js"></script>
+  <script src="/static/academic.js"></script>
   <script src="/static/assistant.js"></script>
 </body>
 </html>
