@@ -19,6 +19,15 @@ function Tail-OrEmpty([string]$Path) {
     if (Test-Path $Path) { return ((Get-Content $Path -Tail 25 -ErrorAction SilentlyContinue) -join $NL) }
     return ""
 }
+function Get-RecordedProcess([string]$PidFile) {
+    if (-not (Test-Path $PidFile)) { return $null }
+    try {
+        $RecordedPid = [int](Get-Content $PidFile -ErrorAction Stop)
+        return Get-Process -Id $RecordedPid -ErrorAction SilentlyContinue
+    } catch {
+        return $null
+    }
+}
 
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
 
@@ -30,9 +39,11 @@ if (-not (Test-Path $Python)) {
 
 Set-Location $RepoRoot
 
-& $Python -c "import app.main, desktop.windows_sidecar, tkinter" 2>$SidecarErr
+# Import check must never reuse the live sidecar log: a running sidecar keeps that
+# file handle open on Windows. Capture diagnostics in memory instead.
+$importOutput = & $Python -c "import app.main, desktop.windows_sidecar, tkinter; print('imports ok')" 2>&1
 if ($LASTEXITCODE -ne 0) {
-    $detail = Tail-OrEmpty $SidecarErr
+    $detail = ($importOutput -join $NL)
     Show-LifeOSError "Life OS could not load" ("The desktop components could not be imported." + $NL + $NL + $detail + $NL + $NL + "Run windows\doctor.ps1 for a full check.")
     exit 1
 }
@@ -70,15 +81,13 @@ if (-not $ServerRunning) {
     exit 1
 }
 
-if (Test-Path $SidecarPidFile) {
-    $oldSidecarPid = [int](Get-Content $SidecarPidFile -ErrorAction SilentlyContinue)
-    $oldProcess = Get-Process -Id $oldSidecarPid -ErrorAction SilentlyContinue
-    if ($oldProcess) {
-        [System.Windows.Forms.MessageBox]::Show("Life OS is already running." + $NL + $NL + "Press Ctrl + Alt + Space to show the assistant.","Life OS",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
-        exit 0
-    }
+$oldSidecar = Get-RecordedProcess $SidecarPidFile
+if ($oldSidecar) {
+    [System.Windows.Forms.MessageBox]::Show("Life OS is already running." + $NL + $NL + "Press Ctrl + Alt + Space to show the assistant.","Life OS",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    exit 0
 }
 
+# No recorded sidecar is alive, so these log files should be safe to rotate.
 Remove-Item $SidecarOut,$SidecarErr -Force -ErrorAction SilentlyContinue
 try {
     $sidecar = Start-Process -FilePath $Python -ArgumentList "-m","desktop.windows_sidecar" -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput $SidecarOut -RedirectStandardError $SidecarErr -PassThru
