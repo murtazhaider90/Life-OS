@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Personal AI Life OS", version="0.5.1", lifespan=lifespan)
+app = FastAPI(title="Personal AI Life OS", version="0.6.1", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -46,7 +46,7 @@ def health():
     settings = get_settings()
     return {
         "status": "ok",
-        "version": "0.5.1",
+        "version": "0.6.1",
         "adguard_configured": bool(settings.adguard_base_url and settings.adguard_username and settings.adguard_password),
     }
 
