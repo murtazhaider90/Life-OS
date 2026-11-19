@@ -8,14 +8,155 @@
 </head>
 <body>
   <main>
-    <header><h1>Personal AI Life OS</h1><p>Local-first Phase 3 planning intelligence</p></header>
-    <section class="card"><h2>Right now</h2><p id="next-action">Add tasks and calendar events, then generate a daily plan.</p></section>
+    <header class="hero">
+      <div>
+        <h1>Personal AI Life OS</h1>
+        <p>Plan the week, record what actually happened, and adapt from evidence.</p>
+      </div>
+      <span id="system-status" class="pill">Loading…</span>
+    </header>
+
+    <section class="grid top-grid">
+      <article class="card accent">
+        <h2>Right now</h2>
+        <div id="next-action">Loading your next action…</div>
+      </article>
+      <article class="card">
+        <h2>Planning load</h2>
+        <div id="context-summary">No context loaded yet.</div>
+      </article>
+      <article class="card">
+        <h2>This week</h2>
+        <div id="week-summary">No weekly plan loaded.</div>
+        <button id="generate-week">Generate / refresh weekly plan</button>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Quick add task</h2>
+        <form id="task-form" class="stack">
+          <input name="title" placeholder="Task title" required />
+          <div class="two">
+            <input name="module" placeholder="Module" />
+            <input name="topic" placeholder="Topic" />
+          </div>
+          <input name="source_material" placeholder="Source material / tutorial / notes" />
+          <div class="three">
+            <label>Minutes<input name="duration" type="number" min="5" max="480" value="45" /></label>
+            <label>Priority<input name="priority" type="number" min="1" max="5" value="3" /></label>
+            <label>Difficulty<input name="difficulty" type="number" min="1" max="5" value="3" /></label>
+          </div>
+          <label>Deadline<input name="deadline" type="datetime-local" /></label>
+          <button type="submit">Add task</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Add commitment</h2>
+        <form id="calendar-form" class="stack">
+          <input name="title" placeholder="Lecture / appointment / event" required />
+          <label>Starts<input name="starts_at" type="datetime-local" required /></label>
+          <label>Ends<input name="ends_at" type="datetime-local" required /></label>
+          <input name="event_type" placeholder="Type (lecture, appointment…)" value="fixed" />
+          <button type="submit">Add to calendar</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>30-second check-in</h2>
+        <form id="state-form" class="stack">
+          <div class="two">
+            <label>Energy 1–5<input name="energy" type="number" min="1" max="5" /></label>
+            <label>Focus 1–5<input name="focus" type="number" min="1" max="5" /></label>
+          </div>
+          <button type="submit">Save check-in</button>
+        </form>
+        <hr />
+        <h3>Log sleep</h3>
+        <form id="sleep-form" class="stack">
+          <label>Sleep start<input name="sleep_start" type="datetime-local" required /></label>
+          <label>Wake time<input name="sleep_end" type="datetime-local" required /></label>
+          <label>Quality 1–5<input name="quality" type="number" min="1" max="5" /></label>
+          <button type="submit">Save sleep</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Training & meals</h2>
+        <form id="training-form" class="stack">
+          <label>Training start<input name="starts_at" type="datetime-local" required /></label>
+          <div class="two">
+            <label>Minutes<input name="duration" type="number" min="1" max="1440" value="45" required /></label>
+            <label>Intensity 1–5<input name="intensity" type="number" min="1" max="5" /></label>
+          </div>
+          <input name="modality" placeholder="Gym / run / football / etc." />
+          <button type="submit">Save training</button>
+        </form>
+        <hr />
+        <form id="meal-form" class="stack">
+          <label>Meal time<input name="consumed_at" type="datetime-local" required /></label>
+          <div class="two">
+            <input name="meal_type" placeholder="Breakfast / lunch / dinner" required />
+            <label>Size 1–5<input name="size_rating" type="number" min="1" max="5" /></label>
+          </div>
+          <button type="submit">Save meal context</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Focus mode</h2>
+        <div id="focus-status">Checking integration…</div>
+        <form id="focus-domain-form" class="inline-form">
+          <input name="domain" placeholder="reddit.com" required />
+          <button type="submit">Add domain</button>
+        </form>
+        <div id="focus-domains" class="muted"></div>
+        <div class="button-row">
+          <button id="focus-apply">Block for 45 min</button>
+          <button id="focus-release" class="secondary">Release</button>
+        </div>
+        <p class="muted">Changing network rules always requires an explicit click. Life OS never silently enables blocking.</p>
+      </article>
+    </section>
+
     <section class="grid">
       <article class="card"><h2>Tasks</h2><div id="tasks"></div></article>
       <article class="card"><h2>Calendar</h2><div id="calendar"></div></article>
     </section>
-    <section class="card"><h2>Grounding rule</h2><p>Recommendations must be traceable to stored facts, observations, estimates or clearly-labelled AI inferences. Missing evidence stays missing.</p></section>
+
+    <section id="toast" class="toast" hidden></section>
+
+    <footer>
+      <p>Grounding rule: facts, observations, estimates, inferences, and recommendations stay separate. Missing data stays missing.</p>
+      <a href="/docs">Open API / advanced controls</a>
+    </footer>
   </main>
+
+  <button id="assistant-launcher" class="assistant-launcher" aria-label="Open Life OS assistant">✦</button>
+
+  <aside id="assistant-panel" class="assistant-panel" aria-label="Life OS assistant" aria-hidden="true">
+    <header class="assistant-header">
+      <div>
+        <strong>Life OS Assistant</strong>
+        <small id="assistant-mode">Voice + text</small>
+      </div>
+      <button id="assistant-close" class="icon-button" aria-label="Close assistant">×</button>
+    </header>
+    <div id="assistant-question" class="assistant-question" hidden></div>
+    <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
+    <div class="assistant-controls">
+      <label class="assistant-toggle"><input id="assistant-speak" type="checkbox" /> Speak replies</label>
+      <div class="assistant-input-row">
+        <button id="assistant-mic" class="mic-button" type="button" aria-label="Speak to Life OS">🎙</button>
+        <input id="assistant-input" autocomplete="off" placeholder="Type or talk…" />
+        <button id="assistant-send" type="button">Send</button>
+      </div>
+      <small id="assistant-privacy" class="muted">Raw conversation transcripts are not stored in the Life OS database.</small>
+    </div>
+  </aside>
+
   <script src="/static/app.js"></script>
+  <script src="/static/assistant.js"></script>
 </body>
 </html>

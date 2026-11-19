@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 20 * 1024 * 1024
     raw_activity_retention_days: int = 45
     activity_sample_seconds: int = 15
+    adguard_base_url: str | None = None
+    adguard_username: str | None = None
+    adguard_password: str | None = None
 
 
 @lru_cache

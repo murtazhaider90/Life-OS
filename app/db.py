@@ -29,7 +29,7 @@ def _sqlite_pragmas(dbapi_connection, _):
 
 
 def init_db() -> None:
-    from . import models  # noqa: F401
+    from . import context_models, models  # noqa: F401
 
     Base.metadata.create_all(engine)
     if settings.db_url.startswith("sqlite"):
