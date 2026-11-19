@@ -37,6 +37,11 @@ if (Test-Path $Python) {
         if ($LASTEXITCODE -ne 0) { throw ($out -join [Environment]::NewLine) }
     }
 
+    Check "Europe/London timezone" {
+        $out = & $Python -c "from zoneinfo import ZoneInfo; print(ZoneInfo('Europe/London'))" 2>&1
+        if ($LASTEXITCODE -ne 0) { throw ($out -join [Environment]::NewLine) }
+    }
+
     Check "Tkinter can open a window" {
         $out = & $Python -c "import tkinter as tk; r=tk.Tk(); r.withdraw(); r.update_idletasks(); r.destroy(); print('tk ok')" 2>&1
         if ($LASTEXITCODE -ne 0) { throw ($out -join [Environment]::NewLine) }
