@@ -1,4 +1,4 @@
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from ..models import CourseChunk, CourseDocument
 
