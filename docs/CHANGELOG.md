@@ -1,54 +1,48 @@
 # CHANGELOG
 
+## 0.7.0
+- Full Academic Brain dashboard and APIs.
+- PDF/TXT/Markdown/DOCX/PPTX course-material ingestion.
+- Bulk upload and recursive local module-folder importer.
+- Source-priority local FTS retrieval with document/page metadata.
+- Local extractive academic Q&A when no AI provider is configured.
+- Optional provider-neutral chat-completions adapter.
+- Provider citation-ID validation with extractive fallback.
+- Prompt-injection detection and untrusted-document boundary.
+- Conflicting date/percentage source warnings.
+- Deterministic explicit learning-objective extraction.
+- Explicit assessment deadline/weight and marking-criteria extraction.
+- Coursework breakdown with optional task creation.
+- Structured mistake tracking.
+- Evidence-backed revision planning with optional planner tasks.
+- Source-backed retrieval quizzes.
+- Side-assistant academic Q&A, quizzes, weak-topic summaries, revision planning and coursework breakdown.
+- Adversarial Academic Brain tests.
+
+## 0.6.1
+- Windows `tzdata` dependency for reliable `Europe/London` ZoneInfo support.
+- Windows doctor timezone check.
+- Improved backend/sidecar diagnostics and stale-process handling.
+
 ## 0.6.0
 - Windows always-on-top Life OS sidecar.
 - Global Ctrl + Alt + Space show/hide hotkey.
-- Native Windows Voice Typing launch from the assistant.
+- Native Windows Voice Typing.
 - Optional Windows speech-synthesis replies.
-- Proactive desktop prompts driven by the deterministic missing-information queue.
-- One-click background launcher, stop script, and desktop-shortcut installer.
-- Sidecar HTTP client regression tests.
-- CI compile checks now include the desktop package.
+- Proactive desktop prompts.
+- One-click background launcher and shortcut installer.
 
 ## 0.5.1
-- Persistent right-side Life OS browser assistant.
-- Proactive missing-information question queue.
-- Browser voice-to-text with on-device preference and explicit warning before browser-service fallback.
-- Optional spoken assistant replies.
-- Deterministic voice/text commands for tasks, fixed calendar events, state inputs, sleep, weekly-plan generation and next-action retrieval.
-- Raw assistant transcripts are not persisted.
-- Ambiguous commands fail closed without mutating data.
+- Browser side assistant, proactive questions and voice/text commands.
 
 ## 0.5.0
-- Context records for sleep, training and meals.
-- Deterministic planning-load heuristic with explicit unknown state when primary context is missing.
-- Morning briefing context adjustment.
-- AdGuard Home adapter for reversible focus-domain rules.
-- Explicit-confirmation focus mode with expiry reconciliation.
-- Soft focus recommendation from explicitly-labelled distraction only.
-- Dashboard upgraded with real input controls.
-- Weekly review now exposes recorded physical/context data.
-- GitHub CI on Python 3.11 and 3.14.
+- Sleep/training/meal context, planning-load heuristic and optional AdGuard focus mode.
 
 ## 0.3.0
-- Versioned weekly planner with deterministic dynamic replanning.
-- Explicit minimum viable week markers and capacity shortfall reporting.
-- Study-attempt evidence model and transparent weak-topic/retrieval heuristics.
-- Weak-topic-aware task scheduling tie-breaks.
-- Morning next-action briefing.
-- Weekly academic/behavioral/planning review with evidence minimums and missing-context reporting.
-- Evidence-backed provisional/developing inference storage for observational comparisons.
+- Versioned weekly planning, dynamic replanning, learning-attempt evidence, morning briefing and weekly review.
 
 ## 0.2.0
-- Phase 2 activity-event ingestion and local collectors.
-- Explicit user-defined study/distraction/neutral rules with separate derived labels.
-- Low-friction state inputs and deterministic session metrics.
-- Configurable raw activity retention.
+- Privacy-minimal computer/browser activity tracking and explicit activity labels.
 
 ## 0.1.0
-- Phase 1 local-first foundation.
-- Provenance-aware data model.
-- Tasks, calendar, study sessions and deterministic daily planner.
-- Course document ingestion and local FTS5 retrieval.
-- Provider-neutral AI interface.
-- Local access controls, tests and architecture documentation.
+- Local-first foundation, provenance, tasks/calendar/study, deterministic daily planning and local course retrieval.

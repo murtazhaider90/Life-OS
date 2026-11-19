@@ -2,18 +2,34 @@
 
 SQLite uses foreign keys and WAL mode.
 
-Core tables:
-- `evidence_records`: provenance category, source, source reference, value JSON, optional confidence and observation time.
-- `tasks`, `calendar_events`, `study_sessions`, `plan_blocks`.
-- `course_documents`, `course_chunks`, `course_chunks_fts`.
-- `activity_events`, `activity_rules`, `activity_labels`, `user_state_inputs`.
-- `study_attempts`, `weekly_plans`, `weekly_plan_blocks`, `inferences`.
+Core planning/learning tables:
+- `evidence_records`
+- `tasks`
+- `calendar_events`
+- `study_sessions`
+- `plan_blocks`
+- `weekly_plans`
+- `weekly_plan_blocks`
+- `study_attempts`
+- `inferences`
 
-Phase 4/5 context/intervention tables:
-- `sleep_records`: explicit start/end, optional quality, source and provenance.
-- `training_records`: start, duration, optional intensity/modality, source and provenance.
-- `meal_records`: timestamp/type/optional size and notes; no nutritional-quality inference.
-- `focus_domain_rules`: user-selected focus domains plus an `adguard_rule_owned` flag so Life OS never removes a pre-existing matching user rule.
-- `intervention_events`: focus-mode activation/release/expiry audit trail.
+Course knowledge:
+- `course_documents`: document-level module/week/topic/type/source/year/filename/hash metadata.
+- `course_chunks`: source-linked text chunks with page/slide metadata.
+- `course_chunks_fts`: local FTS5 search index.
+- `learning_objectives`: explicit extracted objectives linked back to document/chunk/page.
+- `assessments`: explicit assessment metadata and available criteria/source references.
+- `mistake_records`: structured learning mistakes and resolution state.
 
-New Phase 4/5 data uses new tables, so existing Phase 3 SQLite databases are upgraded by normal `create_all` table creation without rewriting existing rows.
+Behavior/context:
+- `activity_events`, `activity_rules`, `activity_labels`, `user_state_inputs`
+- `sleep_records`, `training_records`, `meal_records`
+- `focus_domain_rules`, `intervention_events`
+
+New Academic Brain structures are additive tables created with SQLAlchemy `create_all`; existing personal data is not rewritten.
+
+Important provenance rules:
+- uploaded course material and extracted explicit academic structure: `EXTERNAL_SOURCE`;
+- manually entered assessments: `USER_ESTIMATE`;
+- automatically created revision/coursework tasks: `AI_RECOMMENDATION`;
+- recorded attempts/mistakes: observations unless explicitly sourced otherwise.

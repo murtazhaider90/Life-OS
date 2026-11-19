@@ -1,19 +1,29 @@
 # PRIVACY
 
-Life OS is local-first. Course material, plans, study sessions, activity observations and context records stay in the local SQLite database unless you explicitly configure an external integration.
+Life OS is local-first. Plans, study evidence, activity/context data and uploaded course material stay in the local SQLite database unless you explicitly configure an external integration.
 
-Activity collectors deliberately exclude window titles, keystrokes, clipboard data, screenshots, page contents, URL paths and query strings. Browser telemetry stores hostname only. Raw activity retention defaults to 45 days.
+## Academic Brain
 
-Sleep, training and meal data is opt-in. Manual values are labelled `USER_ESTIMATE`; non-manual integrations are labelled `EXTERNAL_SOURCE`. Sleep/state gaps are not interpreted as normality. Context records have explicit delete endpoints.
+PDF/TXT/Markdown/DOCX/PPTX extraction and FTS retrieval run locally.
+
+By default there is no configured academic AI provider. In local extractive mode, course text is not sent to a cloud model.
+
+If you configure `LIFE_OS_AI_BASE_URL` and a model, the selected retrieved source chunks and your academic question can be sent to that endpoint for synthesis. This is an explicit configuration boundary. The API key remains an environment secret rather than a database field.
+
+Deleting a course document deletes its structured document/chunk records and linked extracted academic records, and removes its chunks from the local FTS index.
 
 ## Voice assistant
 
-The side assistant does not persist raw conversation transcripts. Accepted commands are converted into the same structured task/calendar/state/context records used by the rest of Life OS.
+Raw side-assistant conversations are not persisted. Accepted commands create only structured records needed by the feature.
 
-Browser microphone recognition is not automatically equivalent to local processing. The UI prefers on-device recognition when the browser exposes it. Otherwise it warns that the browser may use an external speech-recognition service and requires a one-time browser-local consent before starting voice recognition. Typed input is always available.
+Windows/browser speech processing is a separate privacy boundary and may use an online speech-recognition service depending on the user's OS/browser settings. Life OS itself does not continuously record microphone audio.
 
-The optional spoken-reply feature uses the browser/operating-system speech-synthesis interface and is off by default.
+## Activity/context
 
-AdGuard integration sends only the rule-management requests needed to your configured AdGuard Home instance. Credentials remain environment-only.
+Activity collection deliberately excludes keystrokes, clipboard data, screenshots, page contents and full URL paths/query strings. Browser activity stores hostname only.
 
-No current component performs continuous microphone recording, continuous webcam capture, private-message ingestion, password collection or silent network blocking.
+Sleep, training and meal data is opt-in. Missing context is not silently interpreted as normality.
+
+## External integrations
+
+AdGuard and optional AI-provider credentials are environment-only. No current component performs continuous webcam capture, continuous microphone recording, private-message ingestion, password collection or silent network blocking.
