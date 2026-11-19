@@ -23,10 +23,24 @@ class LifeOSClient:
                 transport=self.transport,
             ) as client:
                 response = client.request(method, path, **kwargs)
-                response.raise_for_status()
+                if response.is_error:
+                    detail = None
+                    try:
+                        payload = response.json()
+                        if isinstance(payload, dict):
+                            detail = payload.get("detail")
+                    except ValueError:
+                        pass
+                    if not detail:
+                        detail = response.text.strip() or response.reason_phrase
+                    raise LifeOSConnectionError(
+                        f"{response.status_code} {response.reason_phrase}: {detail}"
+                    )
                 if not response.content:
                     return None
                 return response.json()
+        except LifeOSConnectionError:
+            raise
         except (httpx.HTTPError, ValueError) as exc:
             raise LifeOSConnectionError(str(exc)) from exc
 
