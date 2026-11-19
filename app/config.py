@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     adguard_username: str | None = None
     adguard_password: str | None = None
 
+    # Optional provider-neutral chat-completions adapter. Leave blank for
+    # deterministic/extractive academic mode.
+    ai_base_url: str | None = None
+    ai_api_key: str | None = None
+    ai_model: str | None = None
+    ai_timeout_seconds: float = 60.0
+
 
 @lru_cache
 def get_settings() -> Settings:
