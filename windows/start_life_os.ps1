@@ -1,20 +1,41 @@
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Windows.Forms
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
-$PythonW = Join-Path $RepoRoot ".venv\Scripts\pythonw.exe"
 $StateDir = Join-Path $env:LOCALAPPDATA "LifeOS"
-$PidFile = Join-Path $StateDir "server.pid"
+$ServerPidFile = Join-Path $StateDir "server.pid"
+$SidecarPidFile = Join-Path $StateDir "sidecar.pid"
+$ServerOut = Join-Path $StateDir "server.out.log"
+$ServerErr = Join-Path $StateDir "server.err.log"
+$SidecarOut = Join-Path $StateDir "sidecar.out.log"
+$SidecarErr = Join-Path $StateDir "sidecar.err.log"
+$NL = [Environment]::NewLine
 
-if (-not (Test-Path $Python)) {
-    Write-Host "Life OS virtual environment was not found." -ForegroundColor Red
-    Write-Host "Run python -m venv .venv and python -m pip install -e .[dev] once first."
-    Read-Host "Press Enter to close"
-    exit 1
+function Show-LifeOSError([string]$Title, [string]$Message) {
+    [System.Windows.Forms.MessageBox]::Show($Message,$Title,[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
+}
+function Tail-OrEmpty([string]$Path) {
+    if (Test-Path $Path) { return ((Get-Content $Path -Tail 25 -ErrorAction SilentlyContinue) -join $NL) }
+    return ""
 }
 
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+
+if (-not (Test-Path $Python)) {
+    $msg = "The virtual environment was not found at:" + $NL + $Python + $NL + $NL + "Open PowerShell in the Life-OS folder and run:" + $NL + "python -m venv .venv" + $NL + ".venv\Scripts\Activate.ps1" + $NL + 'python -m pip install -e ".[dev]"'
+    Show-LifeOSError "Life OS setup incomplete" $msg
+    exit 1
+}
+
 Set-Location $RepoRoot
+
+& $Python -c "import app.main, desktop.windows_sidecar, tkinter" 2>$SidecarErr
+if ($LASTEXITCODE -ne 0) {
+    $detail = Tail-OrEmpty $SidecarErr
+    Show-LifeOSError "Life OS could not load" ("The desktop components could not be imported." + $NL + $NL + $detail + $NL + $NL + "Run windows\doctor.ps1 for a full check.")
+    exit 1
+}
 
 $ServerRunning = $false
 try {
@@ -23,8 +44,14 @@ try {
 } catch {}
 
 if (-not $ServerRunning) {
-    $server = Start-Process -FilePath $PythonW -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8000" -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
-    Set-Content -Path $PidFile -Value $server.Id
+    Remove-Item $ServerOut,$ServerErr -Force -ErrorAction SilentlyContinue
+    try {
+        $server = Start-Process -FilePath $Python -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8000" -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput $ServerOut -RedirectStandardError $ServerErr -PassThru
+        Set-Content -Path $ServerPidFile -Value $server.Id
+    } catch {
+        Show-LifeOSError "Life OS server failed" ("Could not start the local server." + $NL + $NL + $_.Exception.Message + $NL + $NL + "Run windows\doctor.ps1 for details.")
+        exit 1
+    }
 
     $deadline = (Get-Date).AddSeconds(15)
     do {
@@ -33,18 +60,38 @@ if (-not $ServerRunning) {
             $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -TimeoutSec 2
             if ($health.status -eq "ok") { $ServerRunning = $true; break }
         } catch {}
+        if ($server.HasExited) { break }
     } while ((Get-Date) -lt $deadline)
 }
 
 if (-not $ServerRunning) {
-    Write-Host "Life OS server did not start. Run Uvicorn manually to see the error." -ForegroundColor Red
-    Read-Host "Press Enter to close"
+    $detail = Tail-OrEmpty $ServerErr
+    Show-LifeOSError "Life OS server did not start" ("The backend failed to start." + $NL + $NL + $detail + $NL + $NL + "Logs are in:" + $NL + $StateDir + $NL + $NL + "Run windows\doctor.ps1 for a full check.")
     exit 1
 }
 
-Start-Process -FilePath $PythonW -ArgumentList "-m","desktop.windows_sidecar" -WorkingDirectory $RepoRoot
+if (Test-Path $SidecarPidFile) {
+    $oldSidecarPid = [int](Get-Content $SidecarPidFile -ErrorAction SilentlyContinue)
+    $oldProcess = Get-Process -Id $oldSidecarPid -ErrorAction SilentlyContinue
+    if ($oldProcess) {
+        [System.Windows.Forms.MessageBox]::Show("Life OS is already running." + $NL + $NL + "Press Ctrl + Alt + Space to show the assistant.","Life OS",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        exit 0
+    }
+}
 
-Write-Host "Life OS is running." -ForegroundColor Green
-Write-Host "Ctrl + Alt + Space shows/hides the assistant."
-Write-Host "Dashboard: http://127.0.0.1:8000"
+Remove-Item $SidecarOut,$SidecarErr -Force -ErrorAction SilentlyContinue
+try {
+    $sidecar = Start-Process -FilePath $Python -ArgumentList "-m","desktop.windows_sidecar" -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput $SidecarOut -RedirectStandardError $SidecarErr -PassThru
+    Set-Content -Path $SidecarPidFile -Value $sidecar.Id
+} catch {
+    Show-LifeOSError "Life OS assistant failed" ("Could not start the desktop assistant." + $NL + $NL + $_.Exception.Message)
+    exit 1
+}
+
 Start-Sleep -Seconds 2
+$sidecar.Refresh()
+if ($sidecar.HasExited) {
+    $detail = Tail-OrEmpty $SidecarErr
+    Show-LifeOSError "Life OS assistant crashed" ("The side assistant exited immediately." + $NL + $NL + $detail + $NL + $NL + "Logs are in:" + $NL + $StateDir + $NL + $NL + "Run windows\doctor.ps1 for a full check.")
+    exit 1
+}

@@ -47,3 +47,4 @@ jobs:
           [void][scriptblock]::Create((Get-Content -Raw windows/start_life_os.ps1))
           [void][scriptblock]::Create((Get-Content -Raw windows/stop_life_os.ps1))
           [void][scriptblock]::Create((Get-Content -Raw windows/install_shortcut.ps1))
+          [void][scriptblock]::Create((Get-Content -Raw windows/doctor.ps1))

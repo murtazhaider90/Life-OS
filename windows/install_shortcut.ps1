@@ -14,4 +14,4 @@ $Shortcut.Description = "Start Life OS and the Windows side assistant"
 $Shortcut.Save()
 
 Write-Host "Created: $ShortcutPath" -ForegroundColor Green
-Write-Host "Double-click Life OS on your desktop, then use Ctrl + Alt + Space to show/hide the assistant."
+Write-Host "If it ever fails silently, run windows\Debug-Life-OS.cmd."
